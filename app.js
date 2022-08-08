@@ -1,4 +1,6 @@
 const { EnapsoGraphDBClient } = require('@innotrade/enapso-graphdb-client');
+var fs = require('fs');
+var stringify = require('csv-stringify');
 
 
 // connection data to the running GraphDB instance
@@ -42,9 +44,41 @@ graphDBEndpoint
     )
     .then((result) => {
         console.log(
-            'Read the classes name:\n' + JSON.stringify(result, null, 2)
+            // JSON.stringify(result, null, 2)
+            // 'Read the classes name:\n' + JSON.stringify(result, null, 2)
+            // console.log((result.records))
         );
+        result.records.map(element => {
+            // =============================================
+            graphDBEndpoint
+            .query(
+                `
+                    SELECT ?subject ?predicate ?object
+                    WHERE  
+                    {
+                        VALUES ?object { <${element.class}> }
+                        VALUES ?predicate { rdfs:subClassOf }
+                        ?subject ?predicate ?object .
+                    }
+                `,
+                { transform: 'toCSV' }
+            )
+            .then((result) => {
+                let data = result.records;
+                console.log(data);
+                const stream = fs.createWriteStream("demoC.csv");
+                for (let i of data) {
+                    values = i.split(",") 
+                    stream.write(values.join(",") + "\r\n"); 
+                }
+                stream.end();
+                console.log("Done!");
+            })
+            // =========================================
+                
+        });
     })
+           
     .catch((err) => {
         console.log(err);
     });
