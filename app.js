@@ -38,16 +38,11 @@ graphDBEndpoint
                 ?class a  owl:Class
             } 
             order by ?class
-            limit 10
         `,
         { transform: 'toJSON' }
     )
     .then((result) => {
-        console.log(
-            // JSON.stringify(result, null, 2)
-            // 'Read the classes name:\n' + JSON.stringify(result, null, 2)
-            // console.log((result.records))
-        );
+        const stream = fs.createWriteStream("subclass_triplets.csv");
         result.records.map(element => {
             // =============================================
             graphDBEndpoint
@@ -59,26 +54,43 @@ graphDBEndpoint
                         VALUES ?object { <${element.class}> }
                         VALUES ?predicate { rdfs:subClassOf }
                         ?subject ?predicate ?object .
+                        FILTER NOT EXISTS { 	 
+                            ?otherSub rdfs:subClassOf ?object. 
+                            ?subject rdfs:subClassOf ?otherSub .
+                            FILTER (?otherSub != ?subject)
+                        }
                     }
                 `,
                 { transform: 'toCSV' }
             )
             .then((result) => {
                 let data = result.records;
-                console.log(data);
-                const stream = fs.createWriteStream("demoC.csv");
-                for (let i of data) {
-                    values = i.split(",") 
-                    stream.write(values.join(",") + "\r\n"); 
-                }
-                stream.end();
-                console.log("Done!");
-            })
-            // =========================================
+                // console.log(data);
+               
+                data.forEach(element => {
+                    console.log(typeof(element));
+                    if(element != null){
+                        values = element.split(",") 
+                        stream.write(values.join(",") + "\r\n");
+                    }
+                    // stream.write(element.join(",") + "\r\n"); 
+                    // for (let i of element) {
+                    //     values = i.split(",") 
+                    //     console.log(i)
+                    //     stream.write(values.join(",") + "\r\n"); 
+                    // }
+                });
                 
+
+                
+            }).catch((err) => {
+                console.log(err);
+            });
+            // ======================================== 
         });
+        // stream.end();
+        console.log("Done!");
     })
-           
     .catch((err) => {
         console.log(err);
     });
