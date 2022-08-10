@@ -33,63 +33,52 @@ let graphDBEndpoint = new EnapsoGraphDBClient.Endpoint({
 
 graphDBEndpoint
     .query(
-        `   SELECT distinct ?class
-            WHERE {
-                ?class a  owl:Class
-            } 
-            order by ?class
+        `   
+        SELECT ?subject ?predicate ?object
+        WHERE {
+            ?subject rdfs:subClassOf <http://yowyob.org/service_onto.owl#service_family_0> .
+            FILTER NOT EXISTS {
+                ?sub rdfs:subClassOf ?subject FILTER(?sub != ?subject && ?sub != owl:Nothing ) 
+            }
+        } 
         `,
         { transform: 'toJSON' }
     )
     .then((result) => {
-        const stream = fs.createWriteStream("subclass_triplets.csv");
+        const stream = fs.createWriteStream("leaf_classes_individuals.csv");
         result.records.map(element => {
             // =============================================
             graphDBEndpoint
             .query(
                 `
-                    SELECT ?subject ?predicate ?object
-                    WHERE  
-                    {
-                        VALUES ?object { <${element.class}> }
-                        VALUES ?predicate { rdfs:subClassOf }
-                        ?subject ?predicate ?object .
-                        FILTER NOT EXISTS { 	 
-                            ?otherSub rdfs:subClassOf ?object. 
-                            ?subject rdfs:subClassOf ?otherSub .
-                            FILTER (?otherSub != ?subject)
-                        }
-                    }
+                SELECT ?subject ?l ?p ?o
+                WHERE {
+                    VALUES ?o { <${element.subject}> }
+                    ?subject rdf:type ?o.
+                    ?subject <http://yowyob.org/service_onto.owl#has_label>    ?l.
+                    values ?p { 'is_instance_of' }
+                }
                 `,
                 { transform: 'toCSV' }
             )
             .then((result) => {
                 let data = result.records;
                 // console.log(data);
-               
                 data.forEach(element => {
                     console.log(typeof(element));
                     if(element != null){
                         values = element.split(",") 
                         stream.write(values.join(",") + "\r\n");
                     }
-                    // stream.write(element.join(",") + "\r\n"); 
-                    // for (let i of element) {
-                    //     values = i.split(",") 
-                    //     console.log(i)
-                    //     stream.write(values.join(",") + "\r\n"); 
-                    // }
-                });
-                
-
-                
+                }); 
             }).catch((err) => {
                 console.log(err);
             });
             // ======================================== 
+
         });
-        // stream.end();
         console.log("Done!");
+        // console.log(result.records.length);
     })
     .catch((err) => {
         console.log(err);
